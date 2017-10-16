@@ -5,7 +5,9 @@ import org.junit.runners.Suite
 import org.junit.runners.Suite.SuiteClasses
 
 @RunWith(Suite)
-@SuiteClasses(#[PCMtoUMLBothDirectionsTest, UmlToPCMBothDirectionsTest])
-class AllPCMUMLBothDirectionTests {
-	
+@SuiteClasses(#[
+	PCMtoUMLBothDirectionsVersioningTest,
+	UmlToPCMBothDirectionsVersioningTest
+])
+class PCMUMLBothTestSuite {
 }

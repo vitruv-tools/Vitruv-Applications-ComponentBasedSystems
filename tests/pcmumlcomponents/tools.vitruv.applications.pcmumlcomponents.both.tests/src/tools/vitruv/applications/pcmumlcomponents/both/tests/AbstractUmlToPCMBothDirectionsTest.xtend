@@ -8,6 +8,7 @@ import org.eclipse.emf.common.util.EList
 import org.eclipse.emf.common.util.URI
 import org.eclipse.emf.ecore.EObject
 import org.eclipse.emf.ecore.resource.impl.ResourceSetImpl
+
 import org.eclipse.uml2.uml.Component
 import org.eclipse.uml2.uml.Model
 import org.eclipse.uml2.uml.Package
@@ -19,23 +20,12 @@ import org.palladiosimulator.pcm.repository.CompositeComponent
 import org.palladiosimulator.pcm.repository.PrimitiveTypeEnum
 import org.palladiosimulator.pcm.repository.RepositoryFactory
 
-import tools.vitruv.applications.pcmumlcomponents.pcm2uml.PcmToUmlComponentsChangePropagationSpecification
-import tools.vitruv.applications.pcmumlcomponents.uml2pcm.UmlToPcmComponentsChangePropagationSpecification
+import tools.vitruv.applications.pcmumlcomponents.pcm2uml.versioning.AbstractPcmUmlBothDirectionsTest
 import tools.vitruv.applications.pcmumlcomponents.uml2pcm.UmlToPcmTypesUtil
-import tools.vitruv.domains.pcm.PcmDomainProvider
-import tools.vitruv.domains.uml.UmlDomainProvider
-import tools.vitruv.framework.tests.VitruviusApplicationTest
 
-class AbstractUmlToPCMBothDirectionsTest extends VitruviusApplicationTest {
-	protected static extension UMLFactory = UMLFactory::eINSTANCE
-	protected static extension RepositoryFactory = RepositoryFactory::eINSTANCE
-
-	protected static val COMPONENT_NAME = "TestComponent"
+class AbstractUmlToPCMBothDirectionsTest extends AbstractPcmUmlBothDirectionsTest<Model> {
 	protected static val INTERFACE_NAME = "TestInterface"
-	protected static val MODEL_FILE_EXTENSION = "uml"
-	protected static val MY_MODEL_NAME = "my_model"
-	protected static val THEIR_MODEL_NAME = "their_model"
-	protected static val OPERATION_NAME = "fooOperation"
+	static val OPERATION_NAME = "fooOperation"
 	protected static val PARAMETER_NAME = "fooParameter"
 	protected static val PARAMETER_NAME_2 = "barParameter"
 	protected static val UML_TYPE_BOOL = "Boolean"
@@ -45,42 +35,13 @@ class AbstractUmlToPCMBothDirectionsTest extends VitruviusApplicationTest {
 
 	protected Model myUMLModel
 
-	override unresolveChanges() { true }
-
-	override cleanup() {}
-
-	override setup() {
-		initializeMyTestModel
-	}
-
-	override createChangePropagationSpecifications() {
-		return #[
-			new UmlToPcmComponentsChangePropagationSpecification,
-			new PcmToUmlComponentsChangePropagationSpecification
-		]
-	}
-
-	override getVitruvDomains() {
-		return #[
-			new UmlDomainProvider().domain,
-			new PcmDomainProvider().domain
-		]
-	}
-
-	protected def initializeMyTestModel() {
+	override initializeTestModel() {
 		myUMLModel = createModel
 		myUMLModel.name = MY_MODEL_NAME
 		createAndSynchronizeModel(MY_MODEL_NAME.getProjectModelPath, myUMLModel)
 	}
 
-	protected def Model getUmlModel() {
-		val correspondingElements = correspondenceModel.getCorrespondingEObjects(#[rootElement]).flatten
-		return (correspondingElements.get(0) as Model)
-	}
-
-	protected def Model getRootElement() {
-		return MY_MODEL_NAME.getProjectModelPath.firstRootElement as Model
-	}
+	override getModelFileExtension() { "uml" }
 
 	protected def importPrimitiveTypes() {
 		// val resourceSet = rootElement.eResource.resourceSet
@@ -107,10 +68,6 @@ class AbstractUmlToPCMBothDirectionsTest extends VitruviusApplicationTest {
 		val eList = new BasicEList<T>
 		eList += elements
 		return eList
-	}
-
-	private def String getProjectModelPath(String modelName) {
-		"repository/" + modelName + "." + MODEL_FILE_EXTENSION
 	}
 
 	protected def CompositeComponent getCorrespondingCompositeComponent(Component umlComponent) {

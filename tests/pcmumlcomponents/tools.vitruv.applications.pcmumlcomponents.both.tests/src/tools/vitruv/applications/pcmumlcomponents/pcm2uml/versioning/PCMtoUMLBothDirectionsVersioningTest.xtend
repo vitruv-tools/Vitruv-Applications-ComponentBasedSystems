@@ -8,10 +8,7 @@ import org.eclipse.uml2.uml.Component
 import org.eclipse.uml2.uml.Model
 
 import org.junit.Test
-import tools.vitruv.framework.versioning.Conflict
-import java.util.List
-import tools.vitruv.framework.change.echange.EChange
-import org.eclipse.xtext.xbase.lib.Functions.Function1
+
 import org.palladiosimulator.pcm.repository.BasicComponent
 import org.palladiosimulator.pcm.repository.Repository
 
@@ -26,12 +23,18 @@ import static org.hamcrest.collection.IsCollectionWithSize.hasSize
 import static org.hamcrest.collection.IsIterableWithSize.iterableWithSize
 
 import static org.junit.Assert.assertThat
+import org.eclipse.xtext.xbase.lib.Functions.Function1
+import tools.vitruv.framework.versioning.Conflict
+import java.util.List
+import tools.vitruv.framework.change.echange.EChange
+import tools.vitruv.framework.tuid.TuidManager
 
-class UmlToPCMBothDirectionsVersioningTest extends UmlToPCMBothDirectionsTest {
+class PCMtoUMLBothDirectionsVersioningTest extends PCMtoUMLBothDirectionsTest {
+
 	override setup() {
 		super.setup
-		myUMLVURI = VURI::getInstance(myUMLModel.eResource)
-		myPCMVURI = myUMLModel.correspondentVURI
+		myPCMVURI = VURI::getInstance(myPCMRepository.eResource)
+		myUMLVURI = myPCMRepository.correspondentVURI
 		initializeTheirVURIs
 	}
 
@@ -40,59 +43,61 @@ class UmlToPCMBothDirectionsVersioningTest extends UmlToPCMBothDirectionsTest {
 		String expectedName
 	) {
 		// PS Same base in both virtual models.
-		val myUMLComponent = createUmlComponent(COMPONENT_NAME, false)
+		val myPCMComponent = createABasicComponent(COMPONENT_NAME)
 
-		saveAndSynchronizeChanges(rootElement)
-		assertThat(mylocalRepository.commit(BASE_COMMIT_MESSAGE, myUMLVURI).changes, hasSize(2))
+		assertThat(mylocalRepository.commit(BASE_COMMIT_MESSAGE, myPCMVURI).changes, hasSize(2))
 		assertThat(mylocalRepository.push, is(PushState::SUCCESS))
 
 		theirLocalRepository.pull
-		theirLocalRepository.checkout(theirUMLVURI)
+		theirLocalRepository.checkout(theirPCMVURI)
 
 		// PS Check if changes are in new virtual model.
-		val model = theirLocalRepository.virtualModel.getModelInstance(theirUMLVURI).firstRootEObject as Model
-		val myRepo = mylocalRepository.virtualModel.getModelInstance(myPCMVURI).firstRootEObject as Repository
-		val theirRep = theirLocalRepository.virtualModel.getModelInstance(theirPCMVURI).firstRootEObject as Repository
+		val theirPCMRepository = theirLocalRepository.virtualModel.getModelInstance(theirPCMVURI).
+			firstRootEObject as Repository
 
 		// PS TODO When reapplying the already recorded changes to other virtual model, only the original changes 
 		// are applied. So the correspondent PCM elements get new IDs. To handle the objects in PCM still as the same object 
 		// although the IDs are different, this mapping is used. 
-		theirLocalRepository.addIDPair(theirRep.id -> myRepo.id)
-		val myPCMComponent = myRepo.components__Repository.get(0) as BasicComponent
-		val theirPCMComponent1 = theirRep.components__Repository.get(0) as BasicComponent
+		theirLocalRepository.addIDPair(theirPCMRepository.id -> myPCMRepository.id)
+		val theirPCMComponent1 = theirPCMRepository.components__Repository.get(0) as BasicComponent
 		theirLocalRepository.addIDPair(myPCMComponent.id -> theirPCMComponent1.id)
+		assertThat(theirPCMComponent1.entityName, equalTo(COMPONENT_NAME))
 
-		val umlComponent = model.packagedElements.get(0) as Component
-		assertThat(umlComponent.name, equalTo(COMPONENT_NAME))
 		val correspondences1 = theirLocalRepository.virtualModel.correspondenceModel.
-			getCorrespondingEObjects(#[umlComponent]).flatten
+			getCorrespondingEObjects(#[theirPCMComponent1]).flatten
 		assertThat(correspondences1, iterableWithSize(1))
-		val basicComponent1 = correspondences1.get(0) as BasicComponent
-		assertThat(basicComponent1.entityName, equalTo(COMPONENT_NAME))
+		val theirUMLComponent = correspondences1.get(0) as Component
+		assertThat(theirUMLComponent.name, equalTo(COMPONENT_NAME))
+		val viceVersaCorrespondence = theirLocalRepository.virtualModel.correspondenceModel.
+			getCorrespondingEObjects(#[theirUMLComponent]).flatten
 
-		// PS Change 
-		myUMLComponent.name = UmlToPCMBothDirectionsVersioningTest.MY_NAME
+		assertThat(viceVersaCorrespondence, iterableWithSize(1))
+		val theirViceVersaPCMComponent = viceVersaCorrespondence.get(0) as BasicComponent
+		assertThat(theirViceVersaPCMComponent.entityName, equalTo(COMPONENT_NAME))
+
+		// PS Change entityName to MY_NAME in PCM 
+		myPCMComponent.entityName = MY_NAME
 		saveAndSynchronizeChanges(rootElement)
 
-		assertThat(mylocalRepository.commit(MY_COMMIT_MESSAGE, myUMLVURI).changes, hasSize(1))
+		assertThat(mylocalRepository.commit(MY_COMMIT_MESSAGE, myPCMVURI).changes, hasSize(1))
 		assertThat(mylocalRepository.push, is(PushState::SUCCESS))
 
-		// PS Change name in pcm, commit and push should abort 
+		// PS Change name in UML, commit and push should abort 
 		val correspondences = theirLocalRepository.virtualModel.correspondenceModel.
-			getCorrespondingEObjects(#[umlComponent]).flatten.toList
+			getCorrespondingEObjects(#[theirPCMComponent1]).flatten.toList
 		assertThat(correspondences, hasSize(1))
-		val theirPCMComponent = correspondences.get(0) as BasicComponent
-		assertThat(theirPCMComponent.entityName, equalTo(COMPONENT_NAME))
+		val theirUMLComponent1 = correspondences.get(0) as Component
+		assertThat(theirUMLComponent1.name, equalTo(COMPONENT_NAME))
 		val ResourceSet testResourceSet = new ResourceSetImpl
 		testResourceSet.resourceFactoryRegistry.extensionToFactoryMap.put("*", new XMIResourceFactoryImpl)
-		val sourceModel = testResourceSet.getResource(theirPCMComponent.eResource.URI, true)
-		val repo = sourceModel.contents.get(0) as Repository
-		val theirModifiableComponent = repo.components__Repository.get(0) as BasicComponent
-		startRecordingChanges(repo)
-		theirModifiableComponent.entityName = UmlToPCMBothDirectionsVersioningTest.THEIR_NAME
-		saveAndSynchronizeChanges(theirLocalRepository.virtualModel, repo)
-		theirPCMVURI = VURI::getInstance(theirPCMComponent.eResource)
-		assertThat(theirLocalRepository.commit(THEIR_COMMIT_MESSAGE, theirPCMVURI).changes, hasSize(1))
+		val sourceModel = testResourceSet.getResource(theirUMLComponent1.eResource.URI, true)
+		val theirModifiableModel = sourceModel.contents.get(0) as Model
+		val theirModifiableComponent = theirModifiableModel.packagedElements.get(0) as Component
+		startRecordingChanges(theirModifiableModel)
+		theirModifiableComponent.name = THEIR_NAME
+		saveAndSynchronizeChanges(theirLocalRepository.virtualModel, theirModifiableModel)
+
+		assertThat(theirLocalRepository.commit(THEIR_COMMIT_MESSAGE, theirUMLVURI).changes, hasSize(1))
 		assertThat(theirLocalRepository.push, is(PushState::COMMIT_NOT_ACCEPTED))
 
 		// PS Pull new commit and merge 
@@ -114,14 +119,14 @@ class UmlToPCMBothDirectionsVersioningTest extends UmlToPCMBothDirectionsTest {
 		)
 		assertThat(mergeCommit.changes, hasSize(1))
 		assertThat(theirLocalRepository.push, is(PushState::SUCCESS))
-		val modelAgain = theirLocalRepository.virtualModel.getModelInstance(theirUMLVURI).firstRootEObject as Model
-		val umlComponentAgain = modelAgain.packagedElements.get(0) as Component
-		assertThat(umlComponentAgain.name, is(expectedName))
-		val correspondences2 = theirLocalRepository.virtualModel.correspondenceModel.
-			getCorrespondingEObjects(#[umlComponentAgain]).flatten.toList
-		assertThat(correspondences2, hasSize(1))
-		val pcmComponentAgain = correspondences2.get(0) as BasicComponent
-		assertThat(pcmComponentAgain.entityName, is(expectedName))
+		val theirPCMRepositoryAgain = theirLocalRepository.virtualModel.getModelInstance(theirPCMVURI).
+			firstRootEObject as Repository
+		val theirPCMComponentAgain = theirPCMRepositoryAgain.components__Repository.get(0) as BasicComponent
+		assertThat(theirPCMComponentAgain.entityName, is(expectedName))
+		val theirUMLModelAgain = theirLocalRepository.virtualModel.getModelInstance(theirUMLVURI).
+			firstRootEObject as Model
+		val theirUMLComponentAgain = theirUMLModelAgain.packagedElements.get(0) as Component
+		assertThat(theirUMLComponentAgain.name, is(expectedName))
 	}
 
 	@Test

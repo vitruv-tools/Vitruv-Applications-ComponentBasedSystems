@@ -112,4 +112,5 @@ class UmlToPCMBothDirectionsTest extends AbstractUmlToPCMBothDirectionsTest {
 	protected def Component createUmlComponent(String name) {
 		createUmlComponent(name, false)
 	}
+	
 }

@@ -4,70 +4,44 @@ import org.eclipse.emf.common.util.URI
 import org.eclipse.emf.ecore.EObject
 import org.eclipse.emf.ecore.resource.ResourceSet
 import org.eclipse.emf.ecore.resource.impl.ResourceSetImpl
-import org.eclipse.uml2.uml.Model
-import org.eclipse.uml2.uml.UMLFactory
 
+import org.eclipse.uml2.uml.Model
+
+import org.palladiosimulator.pcm.repository.BasicComponent
 import org.palladiosimulator.pcm.repository.PrimitiveDataType
 import org.palladiosimulator.pcm.repository.PrimitiveTypeEnum
 import org.palladiosimulator.pcm.repository.Repository
-import org.palladiosimulator.pcm.repository.RepositoryFactory
 
-import tools.vitruv.applications.pcmumlcomponents.pcm2uml.PcmToUmlComponentsChangePropagationSpecification
-import tools.vitruv.applications.pcmumlcomponents.uml2pcm.UmlToPcmComponentsChangePropagationSpecification
-import tools.vitruv.domains.pcm.PcmDomainProvider
-import tools.vitruv.domains.uml.UmlDomainProvider
-import tools.vitruv.framework.tests.VitruviusApplicationTest
+import tools.vitruv.applications.pcmumlcomponents.pcm2uml.versioning.AbstractPcmUmlBothDirectionsTest
 
-class AbstractPcmToUmlBothDirectionsTest extends VitruviusApplicationTest {
-	protected static extension UMLFactory = UMLFactory::eINSTANCE
-	protected static extension RepositoryFactory = RepositoryFactory::eINSTANCE
-	protected static val MODEL_FILE_EXTENSION = "repository"
-	protected static val MODEL_NAME = "model"
-	protected val ATTRIBUTE_NAME = "fooAttribute"
-	protected val INTERFACE_NAME = "TestInterface"
-	protected val OPERATION_NAME = "fooOperation"
-	protected val OPERATION_NAME_2 = "barOperation"
-	protected val PARAMETER_NAME = "fooParameter"
-	protected val PARAMETER_NAME_2 = "barParameter"
+abstract class AbstractPcmToUmlBothDirectionsTest extends AbstractPcmUmlBothDirectionsTest<Repository> {
+	// Static values.
+	protected static val ATTRIBUTE_NAME = "fooAttribute"
+	protected static val INTERFACE_NAME = "TestInterface"
+	protected static val OPERATION_NAME = "fooOperation"
+	protected static val OPERATION_NAME_2 = "barOperation"
+	protected static val PARAMETER_NAME = "fooParameter"
+	protected static val PARAMETER_NAME_2 = "barParameter"
 	static val PRIMITIVETYPES_URI = "pathmap://PCM_MODELS/PrimitiveTypes.repository"
-// static val PRIMITIVETYPES_URI = "platform:/plugin/org.palladiosimulator.pcm.resources/defaultModels/PrimitiveTypes.repository"
+
+	// static val PRIMITIVETYPES_URI = "platform:/plugin/org.palladiosimulator.pcm.resources/defaultModels/PrimitiveTypes.repository"
+	// Static variables.
 	protected static Repository primitiveTypesRepository = null
 
-	override unresolveChanges() { true }
+	// Variables.
+	protected Repository myPCMRepository
 
-	override cleanup() {}
+	override protected getModelFileExtension() { "repository" }
 
-	override setup() {
-		initializeTestModel
-	}
-
-	override createChangePropagationSpecifications() {
-		return #[
-			new UmlToPcmComponentsChangePropagationSpecification,
-			new PcmToUmlComponentsChangePropagationSpecification
-		]
-	}
-
-	override getVitruvDomains() {
-		return #[
-			new UmlDomainProvider().domain,
-			new PcmDomainProvider().domain
-		]
-	}
-
-	protected def initializeTestModel() {
-		val pcmRepository = createRepository
-		pcmRepository.entityName = MODEL_NAME
-		createAndSynchronizeModel(MODEL_NAME.projectModelPath, pcmRepository)
+	override initializeTestModel() {
+		myPCMRepository = createRepository
+		myPCMRepository.entityName = MY_MODEL_NAME
+		createAndSynchronizeModel(MY_MODEL_NAME.projectModelPath, myPCMRepository)
 	}
 
 	protected def Model getUmlModel() {
 		val correspondingElements = correspondenceModel.getCorrespondingEObjects(#[rootElement]).flatten
 		return (correspondingElements.get(0) as Model)
-	}
-
-	protected def Repository getRootElement() {
-		return MODEL_NAME.projectModelPath.firstRootElement as Repository
 	}
 
 	protected def Repository loadPrimitiveTypes() {
@@ -97,7 +71,11 @@ class AbstractPcmToUmlBothDirectionsTest extends VitruviusApplicationTest {
 		return correspondenceModel.getCorrespondingEObjects(#[element]).flatten
 	}
 
-	private def String getProjectModelPath(String modelName) {
-		"model/" + modelName + "." + MODEL_FILE_EXTENSION
+	protected def BasicComponent createABasicComponent(String name) {
+		val pcmComponent = createBasicComponent
+		pcmComponent.entityName = name
+		rootElement.components__Repository += pcmComponent
+		saveAndSynchronizeChanges(pcmComponent)
+		return pcmComponent
 	}
 }
