@@ -13,7 +13,6 @@ import tools.vitruv.applications.pcmumlclass.tests.PcmUmlClassApplicationTestHel
 import tools.vitruv.framework.correspondence.CorrespondenceModel
 
 import static org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.Disabled
 import java.nio.file.Path
 
 /**
@@ -154,7 +153,6 @@ class RepositoryConceptTest extends PcmUmlJavaTransitiveChangeTest {
 		umlModel.checkNumberOfJavaPackages
 	}
 
-	@Disabled("Some system-specific bug to be investigated")
 	@Test
 	def void testDeleteRepositoryConcept_PCM() {
 		var pcmRepository = RepositoryFactory.eINSTANCE.createRepository() => [
